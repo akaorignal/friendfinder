@@ -1,31 +1,64 @@
-// ==============================================================================
-// DEPENDENCIES
-// Series of npm packages that we will use to give our server useful functionality
-// ==============================================================================
-var express = require("express");
-var bodyParser = require("body-parser");
-// ==============================================================================
-// EXPRESS CONFIGURATION
-// This sets up the basic properties for our express server
-// ==============================================================================
-// Tells node that we are creating an "express" server
-var app = express();
-// Sets an initial port. We"ll use this later in our listener
-var PORT = process.env.PORT || 8080;
-// Sets up the Express app to handle data parsing
-app.use(bodyParser.urlencoded({ extended: false }));
-app.use(bodyParser.json());
-// ================================================================================
-// ROUTER
-// The below points our server to a series of "route" files.
-// These routes give our server a "map" of how to respond when users visit or request data from various URLs.
-// ================================================================================
-require("./routes/apiRoutes")(app);
-require("./routes/htmlRoutes")(app);
-// =============================================================================
-// LISTENER
-// The below code effectively "starts" our server
-// =============================================================================
-app.listen(PORT, function() {
-  console.log("App listening on PORT: " + PORT);
-});
+//require the friends data file
+var friends = require('../data/friends.js');
+
+//Routes
+module.exports = function(app){
+
+	// API GET Requests
+	app.get('/api/friends', function(req, res){
+		res.json(friends);
+	});
+
+	// API POST Requests
+	app.post('/api/friends', function(req, res){
+
+//Comparing user with their best friend match 
+
+//Object to hold the best match
+		var bestMatch = {
+			name: "",
+			photo: "",
+			friendDifference: 1000
+		};
+
+		// Here we take the result of the user's survey POST and parse it.
+		var userData 	= req.body;
+		var userName 	= userData.name;
+		var userPhoto 	= userData.photo;
+		var userScores 	= userData.scores;
+
+		var totalDifference = 0;
+
+		// Loop through all the friend possibilities in the database. 
+		for  (var i=0; i< friends.length; i++) {
+
+			console.log(friends[i].name);
+			totalDifference = 0;
+
+			// Loop through all the scores of each friend
+			for (var j=0; j< friends[i].scores[j]; j++){
+
+				// We calculate the difference between the scores and sum them into the totalDifference
+				totalDifference += Math.abs(parseInt(userScores[j]) - parseInt(friends[i].scores[j]));
+
+				// If the sum of differences is less then the differences of the current "best match"
+				if (totalDifference <= bestMatch.friendDifference){
+
+					// Reset the bestMatch to be the new friend. 
+					bestMatch.name = friends[i].name;
+					bestMatch.photo = friends[i].photo;
+					bestMatch.friendDifference = totalDifference;
+				}
+			}
+		}
+
+		// Finally save the user's data to the database (this has to happen AFTER the check. otherwise,
+		// the database will always return that the user is the user's best friend).
+		friends.push(userData);
+
+		// Return a JSON with the user's bestMatch. This will be used by the HTML in the next page. 
+		res.json(bestMatch);
+
+	});
+
+}
